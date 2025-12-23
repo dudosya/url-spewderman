@@ -2,6 +2,8 @@ import typer
 from typing import Annotated
 from crawler.model import CrawlConfig
 import pydantic
+import asyncio
+from crawler.engine import crawl_url
 
 app = typer.Typer()
 
@@ -15,5 +17,10 @@ def proc_input(
         print(f"Crawling {url} at depth {depth}")
     except pydantic.ValidationError as e:
         print(e)
+        raise typer.Exit(code=1)
+        
+    result = asyncio.run(crawl_url(crawl_config))
+    print(result)
+    
 if __name__ == "__main__":
     app()
