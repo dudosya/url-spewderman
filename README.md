@@ -26,20 +26,40 @@ uv sync
 
 ### Basic Usage
 
-After installation, use the `input` command:
+After installation, you have several options:
+
+**Option 1: Using `uv run` (simplest)**
 
 ```bash
 # Crawl a website with default settings
-input https://example.com
+uv run input https://example.com
 
 # Save to a single file
+uv run input https://example.com --output-file my_crawl.txt
+```
+
+**Option 2: Activate virtual environment first**
+
+```bash
+# On Windows
+.venv\Scripts\activate
+
+# Then use input command
+input https://example.com
 input https://example.com --output-file my_crawl.txt
+```
+
+**Option 3: Direct path to script**
+
+```bash
+# On Windows
+.venv\Scripts\input.exe https://example.com
 ```
 
 ### View All Options
 
 ```bash
-input --help
+uv run input --help
 ```
 
 ## 📚 Documentation
@@ -62,7 +82,7 @@ input --help
 
 ```bash
 # Academic website with aggressive filtering
-input https://university.edu \
+uv run input https://university.edu \
   --max-depth 4 \
   --concurrency 8 \
   --pruning-threshold 0.7 \
@@ -70,7 +90,7 @@ input https://university.edu \
   --output-format md
 
 # Documentation site with retries
-input https://docs.example.com \
+uv run input https://docs.example.com \
   --max-depth 5 \
   --pruning-threshold 0.3 \
   --max-retries 5 \

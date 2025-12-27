@@ -52,7 +52,7 @@ The crawler uses:
 
 ```bash
 # Basic crawl with default settings (depth=3, concurrency=5)
-input https://example.com
+uv run input https://example.com
 ```
 
 This will:
@@ -65,13 +65,13 @@ This will:
 
 ```bash
 # Save all content to a single file
-input https://example.com --output-file my_crawl.txt
+uv run input https://example.com --output-file my_crawl.txt
 ```
 
 ### View All Options
 
 ```bash
-input --help
+uv run input --help
 ```
 
 ## Advanced Features
@@ -80,30 +80,30 @@ input --help
 
 ```bash
 # Crawl only 2 levels deep
-input https://example.com --max-depth 2
+uv run input https://example.com --max-depth 2
 
 # Maximum depth (15 levels)
-input https://example.com --max-depth 15
+uv run input https://example.com --max-depth 15
 ```
 
 ### Concurrency Control
 
 ```bash
 # Increase concurrent requests for faster crawling (max 20)
-input https://example.com --concurrency 10
+uv run input https://example.com --concurrency 10
 
 # Reduce concurrency for rate-limited sites
-input https://example.com --concurrency 2
+uv run input https://example.com --concurrency 2
 ```
 
 ### Request Delay
 
 ```bash
 # Add delay between requests to be polite
-input https://example.com --request-delay 2.0
+uv run input https://example.com --request-delay 2.0
 
 # Minimum delay (0.1 seconds)
-input https://example.com --request-delay 0.1
+uv run input https://example.com --request-delay 0.1
 ```
 
 ## Content Filtering
@@ -122,40 +122,40 @@ By default, the crawler uses intelligent content filtering to remove:
 
 ```bash
 # Keep all content including navigation, headers, footers
-input https://example.com --no-content-filter
+uv run input https://example.com --no-content-filter
 ```
 
 ### Customize Filtering Aggressiveness
 
 ```bash
 # Keep more content (0.0 = minimal filtering)
-input https://example.com --pruning-threshold 0.2
+uv run input https://example.com --pruning-threshold 0.2
 
 # Keep less content (1.0 = aggressive filtering)
-input https://example.com --pruning-threshold 0.8
+uv run input https://example.com --pruning-threshold 0.8
 ```
 
 ### Custom Excluded Tags
 
 ```bash
 # Exclude specific HTML tags
-input https://example.com --exclude-tags "nav,footer,header,aside,form,script,style"
+uv run input https://example.com --exclude-tags "nav,footer,header,aside,form,script,style"
 
 # Exclude only navigation
-input https://example.com --exclude-tags "nav"
+uv run input https://example.com --exclude-tags "nav"
 ```
 
 ### External Content Control
 
 ```bash
 # Exclude external links from extracted content (default)
-input https://example.com --exclude-external-links
+uv run input https://example.com --exclude-external-links
 
 # Include external links
-input https://example.com --no-exclude-external-links
+uv run input https://example.com --no-exclude-external-links
 
 # Exclude external images
-input https://example.com --exclude-external-images
+uv run input https://example.com --exclude-external-images
 ```
 
 ## Error Recovery & Retry Logic
@@ -168,13 +168,13 @@ By default, the crawler will retry failed requests 3 times with exponential back
 
 ```bash
 # Disable retries
-input https://example.com --max-retries 0
+uv run input https://example.com --max-retries 0
 
 # Increase retries for unreliable sites
-input https://example.com --max-retries 5
+uv run input https://example.com --max-retries 5
 
 # Custom backoff factor (default: 1.5)
-input https://example.com --retry-backoff 2.0
+uv run input https://example.com --retry-backoff 2.0
 ```
 
 ### How Retry Logic Works
@@ -193,21 +193,21 @@ input https://example.com --retry-backoff 2.0
 
 ```bash
 # Plain text output
-input https://example.com --output-format txt --output-file output.txt
+uv run input https://example.com --output-format txt --output-file output.txt
 ```
 
 ### Markdown Format
 
 ```bash
 # Markdown output (preserves headings, lists, links)
-input https://example.com --output-format md --output-file output.md
+uv run input https://example.com --output-format md --output-file output.md
 ```
 
 ### JSON Format
 
 ```bash
 # JSON output (structured data)
-input https://example.com --output-format json --output-file output.json
+uv run input https://example.com --output-format json --output-file output.json
 ```
 
 ### Output Structure
@@ -243,7 +243,7 @@ CRAWLED: 2024-12-27 16:31:00
 
 ```bash
 # Crawl a university website with aggressive filtering
-input https://university.edu \
+uv run input https://university.edu \
   --max-depth 4 \
   --concurrency 8 \
   --pruning-threshold 0.7 \
@@ -255,7 +255,7 @@ input https://university.edu \
 
 ```bash
 # Crawl documentation with minimal filtering
-input https://docs.example.com \
+uv run input https://docs.example.com \
   --max-depth 5 \
   --pruning-threshold 0.3 \
   --exclude-tags "nav,footer" \
@@ -267,7 +267,7 @@ input https://docs.example.com \
 
 ```bash
 # Be extra polite with rate-limited sites
-input https://api.example.com/docs \
+uv run input https://api.example.com/docs \
   --max-depth 3 \
   --concurrency 2 \
   --request-delay 3.0 \
