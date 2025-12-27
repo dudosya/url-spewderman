@@ -110,13 +110,13 @@ uv run input https://example.com --request-delay 0.1
 
 ### Default Filtering
 
-By default, the crawler uses intelligent content filtering to remove:
+By default, the crawler uses intelligent content filtering with optimized settings for universal compatibility:
 
-- Navigation menus (`nav`, `header`, `footer` tags)
-- Sidebars (`aside` tags)
-- Forms (`form` tags)
-- Scripts and styles (`script`, `style` tags)
-- Ads and boilerplate content
+- **Pruning threshold**: 0.3 (balanced - keeps more content than previous 0.5 default)
+- **Excluded HTML tags**: `nav`, `footer`, `header`, `aside`, `form`, `script`, `style`, `iframe`, `noscript`, `svg`, `canvas`, and many more
+- **External content**: External links excluded by default, images included
+
+The default settings work well for most organizational websites (universities, companies, documentation sites). For challenging websites, you may need to adjust these settings.
 
 ### Disable Filtering
 
@@ -341,7 +341,7 @@ async def main():
         request_delay=1.0,
         # Content filtering
         content_filter_enabled=True,
-        pruning_threshold=0.5,
+        pruning_threshold=0.3,
         excluded_tags=["nav", "footer", "header", "aside", "form"],
         exclude_external_links=True,
         # Retry configuration

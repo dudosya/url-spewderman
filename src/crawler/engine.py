@@ -1,4 +1,4 @@
-from typing import Set, List, Dict, Optional
+from typing import Set, List, Dict, Optional, Tuple
 from urllib.parse import urlparse, urljoin
 import asyncio
 import logging
@@ -33,9 +33,56 @@ class CrawlerEngine:
     def _is_same_domain(self, url: str) -> bool:
         """Check if URL belongs to the same domain as the base URL."""
         return self._extract_domain(url) == self.base_domain
+    
+    def _should_crawl_url(self, url: str) -> bool:
+        """
+        Check if a URL should be crawled (HTML pages only, not assets).
+        
+        Returns:
+            True if URL appears to be an HTML page, False for assets
+        """
+        url_lower = url.lower()
+        
+        # Skip common asset file extensions
+        asset_extensions = [
+            '.css', '.js', '.json', '.xml', 
+            '.ico', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp',
+            '.mp4', '.mp3', '.avi', '.mov', '.wav',
+            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+            '.zip', '.tar', '.gz', '.rar', '.7z',
+            '.woff', '.woff2', '.ttf', '.eot', '.otf',
+        ]
+        
+        if any(url_lower.endswith(ext) for ext in asset_extensions):
+            return False
+        
+        # Skip common asset paths
+        asset_paths = [
+            '/css/', '/js/', '/images/', '/img/', '/assets/', '/static/',
+            '/fonts/', '/media/', '/uploads/', '/downloads/', '/files/',
+            '/jsp/images/', '/medias/photo/', '/fileadmin/',
+        ]
+        
+        if any(path in url_lower for path in asset_paths):
+            return False
+        
+        # Check query strings for asset indicators
+        if '?' in url_lower:
+            query_part = url_lower.split('?')[1]
+            asset_query_params = [
+                'export_rss', 'rss', 'feed', 'atom',
+                'download', 'file', 'attachment',
+                'image', 'img', 'photo', 'picture',
+                'stylesheet', 'script', 'css', 'js',
+            ]
+            if any(param in query_part for param in asset_query_params):
+                return False
+        
+        # Default to True (crawl it)
+        return True
         
     def _extract_links(self, html_content: str, base_url: str) -> List[str]:
-        """Extract all links from HTML content using BeautifulSoup."""
+        """Extract all links from HTML content using BeautifulSoup, filtering out non-HTML assets."""
         from bs4 import BeautifulSoup
         
         links = []
@@ -59,20 +106,42 @@ class CrawlerEngine:
                 # Skip empty hrefs
                 if not href.strip():
                     continue
-                    
+                
+                # Filter out common asset file extensions
+                href_lower = href.lower()
+                if any(href_lower.endswith(ext) for ext in [
+                    '.css', '.js', '.json', '.xml', 
+                    '.ico', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp',
+                    '.mp4', '.mp3', '.avi', '.mov', '.wav',
+                    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+                    '.zip', '.tar', '.gz', '.rar', '.7z',
+                    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+                ]):
+                    continue
+                
+                # Filter out common asset paths
+                if any(asset_path in href_lower for asset_path in [
+                    '/css/', '/js/', '/images/', '/img/', '/assets/', '/static/',
+                    '/fonts/', '/media/', '/uploads/', '/downloads/', '/files/',
+                    '/jsp/images/', '/medias/photo/', '/fileadmin/',
+                ]):
+                    continue
+                
+                # Filter out query strings that indicate assets or non-HTML content
+                if '?' in href:
+                    query_part = href.split('?')[1].lower()
+                    if any(param in query_part for param in [
+                        'export_rss', 'rss', 'feed', 'atom',
+                        'download', 'file', 'attachment',
+                        'image', 'img', 'photo', 'picture',
+                        'stylesheet', 'script', 'css', 'js',
+                    ]):
+                        continue
+                
                 links.append(href)
                 
-            # Also check for link tags with href (less common but possible)
-            for link_tag in soup.find_all('link', href=True):
-                href = str(link_tag['href'])
-                if href and not href.startswith(('#', 'javascript:', 'mailto:', 'tel:', 'data:', 'file:', 'ftp:')):
-                    links.append(href)
-                    
-            # Check for area tags with href (image maps)
-            for area_tag in soup.find_all('area', href=True):
-                href = str(area_tag['href'])
-                if href and not href.startswith(('#', 'javascript:', 'mailto:', 'tel:', 'data:', 'file:', 'ftp:')):
-                    links.append(href)
+            # Note: We're NOT including <link> or <area> tags anymore since they're
+            # typically for assets (CSS, favicons, image maps) not HTML pages
                     
         except Exception as e:
             logger.warning(f"Error parsing HTML for links: {e}")
@@ -84,12 +153,38 @@ class CrawlerEngine:
                 if (link.startswith('#') or link.startswith('javascript:') or 
                     link.startswith('mailto:') or link.startswith('tel:')):
                     continue
+                
+                # Apply same filters in regex fallback
+                link_lower = link.lower()
+                if any(link_lower.endswith(ext) for ext in [
+                    '.css', '.js', '.json', '.xml', 
+                    '.ico', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp',
+                    '.mp4', '.mp3', '.avi', '.mov', '.wav',
+                    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+                    '.zip', '.tar', '.gz', '.rar', '.7z',
+                    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+                ]):
+                    continue
+                
                 links.append(link)
                 
-        return links
+        # Deduplicate links
+        unique_links = []
+        seen = set()
+        for link in links:
+            if link not in seen:
+                seen.add(link)
+                unique_links.append(link)
+                
+        return unique_links
         
-    async def _crawl_page(self, url: str) -> Optional[str]:
-        """Crawl a single page with retry logic and return its cleaned markdown content."""
+    async def _crawl_page(self, url: str) -> Optional[Tuple[str, str]]:
+        """
+        Crawl a single page with retry logic and return tuple of (cleaned_content, html_content).
+        
+        Returns:
+            Tuple of (cleaned_markdown_content, raw_html_content) or None if crawl failed
+        """
         # If max_retries is 0, use the original logic without retries
         if self.config.max_retries == 0:
             return await self._crawl_page_single(url)
@@ -159,8 +254,13 @@ class CrawlerEngine:
         # Default to retry for unknown errors
         return True
     
-    async def _crawl_page_single(self, url: str, is_retry: bool = False) -> Optional[str]:
-        """Crawl a single page (without retry logic) and return its cleaned markdown content."""
+    async def _crawl_page_single(self, url: str, is_retry: bool = False) -> Optional[Tuple[str, str]]:
+        """
+        Crawl a single page (without retry logic) and return tuple of (cleaned_content, html_content).
+        
+        Returns:
+            Tuple of (cleaned_markdown_content, raw_html_content) or None if crawl failed
+        """
         # Suppress crawl4ai's output to avoid encoding errors
         import sys
         import io
@@ -207,23 +307,31 @@ class CrawlerEngine:
                     sys.stdout = old_stdout
                     sys.stderr = old_stderr
                 
-                # Check if result is an async generator (handle crawl4ai's async results)
+                # Handle crawl4ai result which might be an async generator
+                actual_result = result
                 try:
-                    # Try to iterate if it's async
+                    # Check if result is an async generator
                     if hasattr(result, '__aiter__'):
                         # It's an async generator, get the first item
                         async for item in result: # type: ignore
-                            result = item
+                            actual_result = item
                             break
                 except Exception:
                     # Not an async generator or error during iteration, continue with current result
                     pass
                 
                 # Extract cleaned content using ContentCleaner
-                content = self.cleaner.extract_cleaned_content(result)
+                content = self.cleaner.extract_cleaned_content(actual_result)
                 
                 # Get content statistics for logging
-                stats = self.cleaner.get_content_stats(result)
+                stats = self.cleaner.get_content_stats(actual_result)
+                
+                # Extract raw HTML from result for link extraction
+                html_content = ""
+                if hasattr(actual_result, 'html') and actual_result.html:
+                    html_content = actual_result.html
+                elif hasattr(actual_result, 'cleaned_html') and actual_result.cleaned_html:
+                    html_content = actual_result.cleaned_html
                 
                 if content and content != "No content extracted":
                     # Log content statistics
@@ -235,7 +343,8 @@ class CrawlerEngine:
                         )
                     
                     # Ensure content is properly encoded
-                    return content.encode('utf-8', errors='replace').decode('utf-8')
+                    cleaned_content = content.encode('utf-8', errors='replace').decode('utf-8')
+                    return (cleaned_content, html_content)
                 else:
                     logger.warning(f"No content extracted from {url}")
                     return None
@@ -299,25 +408,37 @@ class CrawlerEngine:
                 if depth > self.config.max_depth:
                     self.queue.task_done()
                     continue
+                
+                # Skip asset URLs (CSS, JS, images, etc.)
+                if not self._should_crawl_url(url):
+                    logger.debug(f"Skipping asset URL: {url}")
+                    self.visited.add(url)  # Mark as visited to avoid retrying
+                    self.queue.task_done()
+                    continue
                     
                 # Mark as visited
                 self.visited.add(url)
                 
                 # Crawl the page
-                content = await self._crawl_page(url)
-                if content:
-                    self.results[url] = content
+                crawl_result = await self._crawl_page(url)
+                if crawl_result:
+                    # Unpack tuple: (cleaned_content, html_content)
+                    cleaned_content, html_content = crawl_result
                     
-                    # Extract links if not at max depth
-                    if depth < self.config.max_depth:
-                        links = self._extract_links(content, url)
+                    # Store cleaned content in results
+                    self.results[url] = cleaned_content
+                    
+                    # Extract links from HTML content if not at max depth
+                    if depth < self.config.max_depth and html_content:
+                        links = self._extract_links(html_content, url)
                         for link in links:
                             # Convert relative to absolute URL
                             absolute_link = urljoin(url, link)
                             
-                            # Only add if same domain and not visited
+                            # Only add if same domain, not visited, and not an asset
                             if (self._is_same_domain(absolute_link) and 
-                                absolute_link not in self.visited):
+                                absolute_link not in self.visited and
+                                self._should_crawl_url(absolute_link)):
                                 self.queue.put_nowait((absolute_link, depth + 1))
                                 
                 self.queue.task_done()

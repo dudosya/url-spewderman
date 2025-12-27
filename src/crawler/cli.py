@@ -32,8 +32,8 @@ def proc_input(
         help="Disable content filtering (keep all content including navigation, headers, footers)"
     )] = False,
     pruning_threshold: Annotated[float, typer.Option(
-        help="Content filter aggressiveness (0.0=keep more, 1.0=keep less, default=0.5)"
-    )] = 0.5,
+        help="Content filter aggressiveness (0.0=keep more, 1.0=keep less, default=0.3)"
+    )] = 0.3,
     exclude_tags: Annotated[Optional[str], typer.Option(
         help="HTML tags to exclude (comma-separated, e.g., 'nav,footer,header')"
     )] = None,

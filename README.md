@@ -7,7 +7,7 @@ A powerful web crawler for extracting clean textual content from organizational 
 ## Features
 
 - **Multi-page crawling**: BFS crawling with depth limiting and domain restriction
-- **Intelligent content filtering**: Removes navigation, headers, footers, ads using crawl4ai's PruningContentFilter
+- **Intelligent content filtering**: Removes navigation, headers, footers, ads using crawl4ai's PruningContentFilter with optimized defaults for universal compatibility
 - **Error recovery**: Retry logic with exponential backoff for transient failures
 - **Multiple output formats**: TXT, MD, or JSON with consolidated single-file output
 - **Configurable**: Depth, concurrency, request delays, filtering aggressiveness
