@@ -88,18 +88,35 @@ class ContentCleaner:
 
         # Try to get filtered markdown first
         if hasattr(result, 'markdown') and result.markdown:
+            # Check if we have fit_markdown and it's not empty
             if hasattr(result.markdown, 'fit_markdown') and result.markdown.fit_markdown:
-                return result.markdown.fit_markdown
-            elif hasattr(result.markdown, 'raw_markdown') and result.markdown.raw_markdown:
-                return result.markdown.raw_markdown
+                fit_content = result.markdown.fit_markdown
+                # Only return fit_markdown if it has meaningful content
+                if fit_content and len(fit_content.strip()) > 0:
+                    return fit_content
+            
+            # Fall back to raw_markdown if fit_markdown is empty or doesn't exist
+            if hasattr(result.markdown, 'raw_markdown') and result.markdown.raw_markdown:
+                raw_content = result.markdown.raw_markdown
+                if raw_content and len(raw_content.strip()) > 0:
+                    return raw_content
+            
+            # Fall back to string markdown
             elif isinstance(result.markdown, str):
-                return result.markdown
+                str_content = result.markdown
+                if str_content and len(str_content.strip()) > 0:
+                    return str_content
 
         # Fallback to cleaned HTML or raw HTML
         if hasattr(result, 'cleaned_html') and result.cleaned_html:
-            return result.cleaned_html
-        elif hasattr(result, 'html') and result.html:
-            return result.html
+            cleaned_html = result.cleaned_html
+            if cleaned_html and len(cleaned_html.strip()) > 0:
+                return cleaned_html
+        
+        if hasattr(result, 'html') and result.html:
+            html_content = result.html
+            if html_content and len(html_content.strip()) > 0:
+                return html_content
 
         return "No content extracted"
 
