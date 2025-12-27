@@ -52,7 +52,7 @@ The crawler uses:
 
 ```bash
 # Basic crawl with default settings (depth=3, concurrency=5)
-uv run python -m crawler.cli proc-input https://example.com
+input https://example.com
 ```
 
 This will:
@@ -65,13 +65,13 @@ This will:
 
 ```bash
 # Save all content to a single file
-uv run python -m crawler.cli proc-input https://example.com --output-file my_crawl.txt
+input https://example.com --output-file my_crawl.txt
 ```
 
 ### View All Options
 
 ```bash
-uv run python -m crawler.cli proc-input --help
+input --help
 ```
 
 ## Advanced Features
@@ -80,30 +80,30 @@ uv run python -m crawler.cli proc-input --help
 
 ```bash
 # Crawl only 2 levels deep
-uv run python -m crawler.cli proc-input https://example.com --max-depth 2
+input https://example.com --max-depth 2
 
 # Maximum depth (15 levels)
-uv run python -m crawler.cli proc-input https://example.com --max-depth 15
+input https://example.com --max-depth 15
 ```
 
 ### Concurrency Control
 
 ```bash
 # Increase concurrent requests for faster crawling (max 20)
-uv run python -m crawler.cli proc-input https://example.com --concurrency 10
+input https://example.com --concurrency 10
 
 # Reduce concurrency for rate-limited sites
-uv run python -m crawler.cli proc-input https://example.com --concurrency 2
+input https://example.com --concurrency 2
 ```
 
 ### Request Delay
 
 ```bash
 # Add delay between requests to be polite
-uv run python -m crawler.cli proc-input https://example.com --request-delay 2.0
+input https://example.com --request-delay 2.0
 
 # Minimum delay (0.1 seconds)
-uv run python -m crawler.cli proc-input https://example.com --request-delay 0.1
+input https://example.com --request-delay 0.1
 ```
 
 ## Content Filtering
@@ -122,40 +122,40 @@ By default, the crawler uses intelligent content filtering to remove:
 
 ```bash
 # Keep all content including navigation, headers, footers
-uv run python -m crawler.cli proc-input https://example.com --no-content-filter
+input https://example.com --no-content-filter
 ```
 
 ### Customize Filtering Aggressiveness
 
 ```bash
 # Keep more content (0.0 = minimal filtering)
-uv run python -m crawler.cli proc-input https://example.com --pruning-threshold 0.2
+input https://example.com --pruning-threshold 0.2
 
 # Keep less content (1.0 = aggressive filtering)
-uv run python -m crawler.cli proc-input https://example.com --pruning-threshold 0.8
+input https://example.com --pruning-threshold 0.8
 ```
 
 ### Custom Excluded Tags
 
 ```bash
 # Exclude specific HTML tags
-uv run python -m crawler.cli proc-input https://example.com --exclude-tags "nav,footer,header,aside,form,script,style"
+input https://example.com --exclude-tags "nav,footer,header,aside,form,script,style"
 
 # Exclude only navigation
-uv run python -m crawler.cli proc-input https://example.com --exclude-tags "nav"
+input https://example.com --exclude-tags "nav"
 ```
 
 ### External Content Control
 
 ```bash
 # Exclude external links from extracted content (default)
-uv run python -m crawler.cli proc-input https://example.com --exclude-external-links
+input https://example.com --exclude-external-links
 
 # Include external links
-uv run python -m crawler.cli proc-input https://example.com --no-exclude-external-links
+input https://example.com --no-exclude-external-links
 
 # Exclude external images
-uv run python -m crawler.cli proc-input https://example.com --exclude-external-images
+input https://example.com --exclude-external-images
 ```
 
 ## Error Recovery & Retry Logic
@@ -168,13 +168,13 @@ By default, the crawler will retry failed requests 3 times with exponential back
 
 ```bash
 # Disable retries
-uv run python -m crawler.cli proc-input https://example.com --max-retries 0
+input https://example.com --max-retries 0
 
 # Increase retries for unreliable sites
-uv run python -m crawler.cli proc-input https://example.com --max-retries 5
+input https://example.com --max-retries 5
 
 # Custom backoff factor (default: 1.5)
-uv run python -m crawler.cli proc-input https://example.com --retry-backoff 2.0
+input https://example.com --retry-backoff 2.0
 ```
 
 ### How Retry Logic Works
@@ -193,21 +193,21 @@ uv run python -m crawler.cli proc-input https://example.com --retry-backoff 2.0
 
 ```bash
 # Plain text output
-uv run python -m crawler.cli proc-input https://example.com --output-format txt --output-file output.txt
+input https://example.com --output-format txt --output-file output.txt
 ```
 
 ### Markdown Format
 
 ```bash
 # Markdown output (preserves headings, lists, links)
-uv run python -m crawler.cli proc-input https://example.com --output-format md --output-file output.md
+input https://example.com --output-format md --output-file output.md
 ```
 
 ### JSON Format
 
 ```bash
 # JSON output (structured data)
-uv run python -m crawler.cli proc-input https://example.com --output-format json --output-file output.json
+input https://example.com --output-format json --output-file output.json
 ```
 
 ### Output Structure
@@ -243,7 +243,7 @@ CRAWLED: 2024-12-27 16:31:00
 
 ```bash
 # Crawl a university website with aggressive filtering
-uv run python -m crawler.cli proc-input https://university.edu \
+input https://university.edu \
   --max-depth 4 \
   --concurrency 8 \
   --pruning-threshold 0.7 \
@@ -255,7 +255,7 @@ uv run python -m crawler.cli proc-input https://university.edu \
 
 ```bash
 # Crawl documentation with minimal filtering
-uv run python -m crawler.cli proc-input https://docs.example.com \
+input https://docs.example.com \
   --max-depth 5 \
   --pruning-threshold 0.3 \
   --exclude-tags "nav,footer" \
@@ -267,7 +267,7 @@ uv run python -m crawler.cli proc-input https://docs.example.com \
 
 ```bash
 # Be extra polite with rate-limited sites
-uv run python -m crawler.cli proc-input https://api.example.com/docs \
+input https://api.example.com/docs \
   --max-depth 3 \
   --concurrency 2 \
   --request-delay 3.0 \

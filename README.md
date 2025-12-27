@@ -2,6 +2,8 @@
 
 A powerful web crawler for extracting clean textual content from organizational websites (universities, companies, etc.) for use with chatbots and LLMs.
 
+> 📖 **New**: Check out the [Complete Tutorial](TUTORIAL.md) for detailed usage examples and configuration guides!
+
 ## Features
 
 - **Multi-page crawling**: BFS crawling with depth limiting and domain restriction
@@ -24,31 +26,43 @@ uv sync
 
 ### Basic Usage
 
+After installation, use the `input` command:
+
 ```bash
 # Crawl a website with default settings
-uv run python -m crawler.cli proc-input https://example.com
+input https://example.com
 
 # Save to a single file
-uv run python -m crawler.cli proc-input https://example.com --output-file my_crawl.txt
+input https://example.com --output-file my_crawl.txt
 ```
 
 ### View All Options
 
 ```bash
-uv run python -m crawler.cli proc-input --help
+input --help
 ```
 
-## Documentation
+## 📚 Documentation
 
-- **[Complete Tutorial](TUTORIAL.md)**: Detailed usage guide with examples
-- **[Specification](spec.md)**: Technical requirements and implementation details
-- **[API Reference](TUTORIAL.md#api-usage)**: Programmatic usage examples
+| Document                                      | Description                                             |
+| --------------------------------------------- | ------------------------------------------------------- |
+| **[📖 Complete Tutorial](TUTORIAL.md)**       | Step-by-step usage guide with examples for all features |
+| **[📋 Specification](spec.md)**               | Technical requirements and implementation details       |
+| **[⚙️ API Reference](TUTORIAL.md#api-usage)** | Programmatic usage examples                             |
+
+**Quick Links:**
+
+- [Installation Guide](TUTORIAL.md#installation)
+- [Basic Usage](TUTORIAL.md#basic-usage)
+- [Content Filtering](TUTORIAL.md#content-filtering)
+- [Error Recovery](TUTORIAL.md#error-recovery--retry-logic)
+- [Examples](TUTORIAL.md#examples)
 
 ## Example Commands
 
 ```bash
 # Academic website with aggressive filtering
-uv run python -m crawler.cli proc-input https://university.edu \
+input https://university.edu \
   --max-depth 4 \
   --concurrency 8 \
   --pruning-threshold 0.7 \
@@ -56,7 +70,7 @@ uv run python -m crawler.cli proc-input https://university.edu \
   --output-format md
 
 # Documentation site with retries
-uv run python -m crawler.cli proc-input https://docs.example.com \
+input https://docs.example.com \
   --max-depth 5 \
   --pruning-threshold 0.3 \
   --max-retries 5 \
@@ -73,6 +87,26 @@ uv run pytest tests/ -v
 uv run ruff check src/
 uv run ruff format src/
 ```
+
+## GitHub Visibility
+
+The [TUTORIAL.md](TUTORIAL.md) file is now prominently featured in this README with:
+
+- A callout banner at the top
+- A dedicated documentation section with quick links
+- Clear navigation to all tutorial sections
+
+On GitHub, the tutorial will appear:
+
+1. In the repository file list (as `TUTORIAL.md`)
+2. Linked from multiple places in the README
+3. With proper Markdown rendering for easy reading
+
+To further enhance GitHub visibility:
+
+- The tutorial uses proper Markdown headers and structure
+- It includes a table of contents with anchor links
+- All code examples are properly formatted
 
 ## License
 
