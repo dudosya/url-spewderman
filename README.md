@@ -1,42 +1,22 @@
-# URL-Spewderman 🕷️
+# URL-Spewderman
 
-A powerful web crawler for extracting clean textual content from websites for use with chatbots and LLMs. Perfect for creating knowledge bases from documentation sites, company websites, and more.
+Web crawler for extracting text content from websites. Outputs consolidated files for LLM ingestion.
 
-## Quick Start (30 seconds)
+## Quick Start
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/dudosya/url-spewderman.git
 cd url-spewderman
 uv sync
 
-# 2. Crawl any website
 uv run input https://docs.example.com
 ```
 
-That's it! Your content will be saved to `output/docs_example_com.txt`.
-
----
-
-## Features
-
-- 🕸️ **Multi-page crawling** - BFS crawling with configurable depth and domain restriction
-- 🧹 **Smart content filtering** - Automatically removes navigation, headers, footers, ads
-- 🔄 **Error recovery** - Retry logic with exponential backoff for unreliable connections
-- 📄 **Consolidated output** - All pages combined into one LLM-ready file
-- 🚀 **Concurrent crawling** - Fast parallel requests with rate limiting
-- 🔗 **URL deduplication** - Intelligent normalization prevents duplicate pages
-
----
+Output saved to `output/docs_example_com.txt`.
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.13+
-- [uv](https://github.com/astral-sh/uv) package manager (recommended)
-
-### Install
+Requires Python 3.13+ and [uv](https://github.com/astral-sh/uv).
 
 ```bash
 git clone https://github.com/dudosya/url-spewderman.git
@@ -44,209 +24,105 @@ cd url-spewderman
 uv sync
 ```
 
-If you need Playwright browsers for JavaScript-heavy sites:
+For JavaScript-heavy sites:
 
 ```bash
 uv run playwright install
 ```
 
----
-
-## Usage Examples
-
-### Basic Crawl
-
-```bash
-# Crawl with all defaults - saves to output/<domain>.txt
-uv run input https://docs.python.org
-```
-
-### Specify Output File
-
-```bash
-# Custom output filename
-uv run input https://docs.python.org --output-file python_docs.txt
-
-# Different format (md or json)
-uv run input https://docs.python.org --output-file docs.md --output-format md
-```
-
-### Control Crawl Depth
-
-```bash
-# Shallow crawl (faster, less content)
-uv run input https://example.com --max-depth 1
-
-# Deep crawl (slower, more comprehensive)
-uv run input https://example.com --max-depth 5
-```
-
-### Faster Crawling
-
-```bash
-# Increase concurrency for faster crawling
-uv run input https://example.com --concurrency 10 --request-delay 0.5
-```
-
-### Aggressive Content Filtering
-
-```bash
-# Keep only main content, remove more boilerplate
-uv run input https://example.com --pruning-threshold 0.7
-```
-
-### Disable Filtering (Keep Everything)
-
-```bash
-# Keep all content including nav, headers, footers
-uv run input https://example.com --no-content-filter
-```
-
----
-
-## Command Reference
+## Usage
 
 ```bash
 uv run input <URL> [OPTIONS]
 ```
 
-### All Parameters
-
-| Parameter                   | Default    | Description                                         |
-| --------------------------- | ---------- | --------------------------------------------------- |
-| `URL`                       | (required) | The website URL to crawl                            |
-| `--max-depth`               | `3`        | How many links deep to crawl (1-15)                 |
-| `--output-format`           | `txt`      | Output format: `txt`, `md`, or `json`               |
-| `--output-file`             | auto       | Custom output filename (default: `<domain>.txt`)    |
-| `--concurrency`             | `5`        | Number of parallel requests (1-20)                  |
-| `--request-delay`           | `1.0`      | Seconds between requests (0.1-5.0)                  |
-| `--max-retries`             | `3`        | Retry attempts for failed requests (0-10)           |
-| `--retry-backoff`           | `1.5`      | Exponential backoff multiplier (1.0-5.0)            |
-| `--no-content-filter`       | `false`    | Disable content filtering (keep everything)         |
-| `--pruning-threshold`       | `0.3`      | Filter aggressiveness: 0.0=keep more, 1.0=keep less |
-| `--exclude-tags`            | (defaults) | Comma-separated HTML tags to remove                 |
-| `--exclude-external-links`  | `true`     | Remove links to other domains                       |
-| `--exclude-external-images` | `false`    | Remove images from other domains                    |
-
-### Parameter Details
-
-#### `--max-depth`
-
-Controls how many levels of links to follow from the starting URL.
-
-- `1` = Only the starting page
-- `2` = Starting page + pages it links to
-- `3` = Default, good balance of coverage and speed
-
-#### `--pruning-threshold`
-
-How aggressively to filter out boilerplate content:
-
-- `0.0-0.2` = Keep almost everything (minimal filtering)
-- `0.3` = Default, balanced for most sites
-- `0.5-0.7` = Aggressive, removes more sidebar/footer content
-- `0.8-1.0` = Very aggressive, may remove useful content
-
-#### `--concurrency` and `--request-delay`
-
-Balance speed vs. server load:
-
-- High concurrency + low delay = Fast but may overwhelm servers
-- Low concurrency + high delay = Slow but polite
-- Default (`5` + `1.0s`) works for most sites
-
----
-
-## Real-World Examples
-
-### Documentation Site
+### Examples
 
 ```bash
-uv run input https://docs.python.org \
-  --max-depth 4 \
-  --output-file python_docs.txt
+# Basic crawl
+uv run input https://docs.python.org
+
+# Custom output file
+uv run input https://docs.python.org --output-file python_docs.txt
+
+# Shallow crawl (single page)
+uv run input https://example.com --max-depth 1
+
+# Deep crawl with more filtering
+uv run input https://example.com --max-depth 5 --pruning-threshold 0.7
+
+# Faster crawling
+uv run input https://example.com --concurrency 10 --request-delay 0.5
+
+# Keep all content (no filtering)
+uv run input https://example.com --no-content-filter
 ```
 
-### Company Website
+## Parameters
 
-```bash
-uv run input https://company.com \
-  --max-depth 3 \
-  --pruning-threshold 0.5 \
-  --output-file company_info.md \
-  --output-format md
-```
+| Parameter                   | Default  | Description                       |
+| --------------------------- | -------- | --------------------------------- |
+| `URL`                       | required | Website URL to crawl              |
+| `--max-depth`               | `3`      | Link depth to crawl (1-15)        |
+| `--output-format`           | `txt`    | Format: `txt`, `md`, `json`       |
+| `--output-file`             | auto     | Output filename                   |
+| `--concurrency`             | `5`      | Parallel requests (1-20)          |
+| `--request-delay`           | `1.0`    | Delay between requests in seconds |
+| `--max-retries`             | `3`      | Retry attempts for failures       |
+| `--retry-backoff`           | `1.5`    | Backoff multiplier                |
+| `--no-content-filter`       | `false`  | Disable content filtering         |
+| `--pruning-threshold`       | `0.3`    | Filter aggressiveness (0.0-1.0)   |
+| `--exclude-tags`            | defaults | HTML tags to remove               |
+| `--exclude-external-links`  | `true`   | Remove external links             |
+| `--exclude-external-images` | `false`  | Remove external images            |
 
-### Large Site (Be Polite)
+### Key Parameters
 
-```bash
-uv run input https://large-site.com \
-  --max-depth 5 \
-  --concurrency 3 \
-  --request-delay 2.0 \
-  --max-retries 5
-```
+**--max-depth**: How many levels of links to follow.
 
-### Quick Single-Page Scrape
+- `1` = starting page only
+- `3` = default
+- Higher = more pages, slower
 
-```bash
-uv run input https://example.com/specific-page \
-  --max-depth 1 \
-  --output-file single_page.txt
-```
+**--pruning-threshold**: Content filter aggressiveness.
 
----
+- `0.0-0.2` = minimal filtering
+- `0.3` = default
+- `0.7-1.0` = aggressive filtering
 
-## Output Format
+**--concurrency / --request-delay**: Speed vs. politeness tradeoff.
 
-The crawler produces a consolidated file with all pages separated by markers:
+## Output Formats
 
-**TXT format:**
+**TXT:**
 
 ```
 === URL: https://example.com/ ===
 
-# Main content here...
-
-==================================================
-
-=== URL: https://example.com/about ===
-
-# About page content...
+Content here...
 
 ==================================================
 ```
 
-**MD format:**
+**MD:**
 
 ```markdown
 ## https://example.com/
 
-Main content here...
-
----
-
-## https://example.com/about
-
-About page content...
+Content here...
 
 ---
 ```
 
-**JSON format:**
+**JSON:**
 
 ```json
 {
-  "pages": [
-    { "url": "https://example.com/", "content": "..." },
-    { "url": "https://example.com/about", "content": "..." }
-  ]
+  "pages": [{ "url": "https://example.com/", "content": "..." }]
 }
 ```
 
----
-
-## Programmatic Usage (Python API)
+## Python API
 
 ```python
 import asyncio
@@ -261,56 +137,37 @@ async def main():
         concurrency=5,
         pruning_threshold=0.3,
     )
-
     results = await crawl_url(config)
     save_consolidated(results, "output.txt", format="txt")
-
-    print(f"Crawled {len(results)} pages")
 
 asyncio.run(main())
 ```
 
----
-
 ## Troubleshooting
 
-### "No content extracted"
+**No content extracted:**
 
-- Try lowering `--pruning-threshold` to `0.1` or `0.2`
-- Try `--no-content-filter` to see raw content
-- The site may require JavaScript - ensure Playwright is installed
+- Lower `--pruning-threshold` to `0.1`
+- Try `--no-content-filter`
+- Install Playwright for JS sites
 
-### Slow crawling
+**Slow crawling:**
 
-- Increase `--concurrency` (up to 20)
-- Decrease `--request-delay` (minimum 0.1)
-- Reduce `--max-depth` if you don't need deep crawling
+- Increase `--concurrency`
+- Decrease `--request-delay`
 
-### Getting blocked/rate limited
+**Getting blocked:**
 
 - Decrease `--concurrency` to 2-3
-- Increase `--request-delay` to 2-3 seconds
-- Increase `--max-retries` to 5
-
-### Duplicate content
-
-- This has been fixed! The crawler now normalizes URLs to prevent duplicates
-
----
+- Increase `--request-delay` to 2-3s
 
 ## Development
 
 ```bash
-# Run tests
 uv run pytest tests/ -v
-
-# Check code quality
 uv run ruff check src/
-uv run ruff format src/
 ```
-
----
 
 ## License
 
-See [LICENSE](LICENSE) file for details.
+See [LICENSE](LICENSE).
