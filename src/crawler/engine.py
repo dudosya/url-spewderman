@@ -1,5 +1,5 @@
 from typing import Set, List, Dict, Optional, Tuple
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlunparse, parse_qsl, urlencode
 import asyncio
 import logging
 import sys
@@ -17,18 +17,67 @@ class CrawlerEngine:
     def __init__(self, config: CrawlConfig):
         self.config = config
         self.visited: Set[str] = set()
+        self.queued: Set[str] = set()  # Track URLs already added to queue to prevent duplicates
         self.queue: asyncio.Queue = asyncio.Queue()
         self.results: Dict[str, str] = {}
         self.base_domain = self._extract_domain(str(config.url))
         self.cleaner = ContentCleaner(config)
+        self._visited_lock = asyncio.Lock()  # Protect visited/queued sets from race conditions
         
-        # Initialize queue with starting URL at depth 0
-        self.queue.put_nowait((str(config.url), 0))
+        # Normalize and initialize queue with starting URL at depth 0
+        start_url = self._normalize_url(str(config.url))
+        self.queue.put_nowait((start_url, 0))
+        self.queued.add(start_url)
         
     def _extract_domain(self, url: str) -> str:
         """Extract domain from URL for domain restriction."""
         parsed = urlparse(url)
-        return parsed.netloc
+        return parsed.netloc.lower()  # Normalize domain to lowercase
+    
+    def _normalize_url(self, url: str) -> str:
+        """
+        Normalize a URL to prevent duplicate crawls of the same resource.
+        
+        Normalizations applied:
+        - Remove URL fragments (#section)
+        - Normalize trailing slashes (remove for non-root paths)
+        - Lowercase the scheme and domain
+        - Sort query parameters for consistency
+        - Remove default ports (80 for http, 443 for https)
+        """
+        parsed = urlparse(url)
+        
+        # Lowercase scheme and netloc
+        scheme = parsed.scheme.lower()
+        netloc = parsed.netloc.lower()
+        
+        # Remove default ports
+        if ':' in netloc:
+            host, port = netloc.rsplit(':', 1)
+            if (scheme == 'http' and port == '80') or (scheme == 'https' and port == '443'):
+                netloc = host
+        
+        # Normalize path - remove trailing slash unless it's the root
+        path = parsed.path
+        if path != '/' and path.endswith('/'):
+            path = path.rstrip('/')
+        
+        # If path is empty, make it '/'
+        if not path:
+            path = '/'
+        
+        # Sort query parameters for consistency
+        query = parsed.query
+        if query:
+            # Parse, sort, and re-encode query parameters
+            params = parse_qsl(query, keep_blank_values=True)
+            params.sort()
+            query = urlencode(params)
+        
+        # Reconstruct URL without fragment
+        normalized = urlunparse((scheme, netloc, path, parsed.params, query, ''))
+        
+        return normalized
         
     def _is_same_domain(self, url: str) -> bool:
         """Check if URL belongs to the same domain as the base URL."""
@@ -376,6 +425,8 @@ class CrawlerEngine:
             
     async def run(self) -> Dict[str, str]:
         """Run the BFS crawler and return all crawled content."""
+        logger.info(f"Starting crawl of {self.base_domain} with max_depth={self.config.max_depth}, concurrency={self.config.concurrency}")
+        
         workers = [
             asyncio.create_task(self._worker())
             for _ in range(min(self.config.concurrency, 10))
@@ -391,6 +442,8 @@ class CrawlerEngine:
         # Wait for all workers to be cancelled
         await asyncio.gather(*workers, return_exceptions=True)
         
+        logger.info(f"Crawl complete: {len(self.results)} pages crawled, {len(self.visited)} URLs visited")
+        
         return self.results
         
     async def _worker(self):
@@ -399,10 +452,18 @@ class CrawlerEngine:
             try:
                 url, depth = await self.queue.get()
                 
-                # Skip if already visited
-                if url in self.visited:
-                    self.queue.task_done()
-                    continue
+                # Normalize the URL to catch duplicates
+                normalized_url = self._normalize_url(url)
+                
+                # Use lock to safely check and update visited set (prevents race conditions)
+                async with self._visited_lock:
+                    # Skip if already visited
+                    if normalized_url in self.visited:
+                        self.queue.task_done()
+                        continue
+                    
+                    # Mark as visited immediately to prevent other workers from processing
+                    self.visited.add(normalized_url)
                     
                 # Skip if exceeds max depth
                 if depth > self.config.max_depth:
@@ -410,36 +471,43 @@ class CrawlerEngine:
                     continue
                 
                 # Skip asset URLs (CSS, JS, images, etc.)
-                if not self._should_crawl_url(url):
-                    logger.debug(f"Skipping asset URL: {url}")
-                    self.visited.add(url)  # Mark as visited to avoid retrying
+                if not self._should_crawl_url(normalized_url):
+                    logger.debug(f"Skipping asset URL: {normalized_url}")
                     self.queue.task_done()
                     continue
-                    
-                # Mark as visited
-                self.visited.add(url)
                 
                 # Crawl the page
-                crawl_result = await self._crawl_page(url)
+                crawl_result = await self._crawl_page(normalized_url)
                 if crawl_result:
                     # Unpack tuple: (cleaned_content, html_content)
                     cleaned_content, html_content = crawl_result
                     
                     # Store cleaned content in results
-                    self.results[url] = cleaned_content
+                    self.results[normalized_url] = cleaned_content
                     
                     # Extract links from HTML content if not at max depth
                     if depth < self.config.max_depth and html_content:
-                        links = self._extract_links(html_content, url)
-                        for link in links:
-                            # Convert relative to absolute URL
-                            absolute_link = urljoin(url, link)
-                            
-                            # Only add if same domain, not visited, and not an asset
-                            if (self._is_same_domain(absolute_link) and 
-                                absolute_link not in self.visited and
-                                self._should_crawl_url(absolute_link)):
-                                self.queue.put_nowait((absolute_link, depth + 1))
+                        links = self._extract_links(html_content, normalized_url)
+                        
+                        # Batch process new links with lock to prevent duplicates
+                        new_links = []
+                        async with self._visited_lock:
+                            for link in links:
+                                # Convert relative to absolute URL and normalize
+                                absolute_link = urljoin(normalized_url, link)
+                                normalized_link = self._normalize_url(absolute_link)
+                                
+                                # Only add if same domain, not visited/queued, and not an asset
+                                if (self._is_same_domain(normalized_link) and 
+                                    normalized_link not in self.visited and
+                                    normalized_link not in self.queued and
+                                    self._should_crawl_url(normalized_link)):
+                                    self.queued.add(normalized_link)
+                                    new_links.append((normalized_link, depth + 1))
+                        
+                        # Add to queue outside the lock
+                        for link_info in new_links:
+                            self.queue.put_nowait(link_info)
                                 
                 self.queue.task_done()
                 

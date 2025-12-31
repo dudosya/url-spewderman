@@ -3,9 +3,17 @@ from typing import Annotated, Optional
 from pathlib import Path
 import pydantic
 import asyncio
+import logging
 from crawler.model import CrawlConfig
 from crawler.engine import crawl_url
 from crawler.storage import save_all_pages, save_consolidated
+
+# Configure logging for CLI usage
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%H:%M:%S"
+)
 
 app = typer.Typer()
 
@@ -49,7 +57,7 @@ def proc_input(
     """
     # Validate output_format
     if output_format not in ["txt", "md", "json"]:
-        print(f"Error: output_format must be 'txt', 'md', or 'json', got '{output_format}'")
+        typer.echo(f"Error: output_format must be 'txt', 'md', or 'json', got '{output_format}'")
         raise typer.Exit(code=1)
     
     # Parse excluded tags if provided
@@ -58,39 +66,46 @@ def proc_input(
         excluded_tags_list = [tag.strip() for tag in exclude_tags.split(",")]
     
     try:
-        crawl_config = CrawlConfig(
-            url=url,  # type: ignore
-            max_depth=max_depth,
-            output_format=output_format,  # type: ignore
-            output_file=output_file,
-            concurrency=concurrency,
-            request_delay=request_delay,
-            # Retry configuration
-            max_retries=max_retries,
-            retry_backoff_factor=retry_backoff,
-            # Content filtering configuration
-            content_filter_enabled=not no_content_filter,
-            pruning_threshold=pruning_threshold,
-            excluded_tags=excluded_tags_list if excluded_tags_list else None,
-            exclude_external_links=exclude_external_links,
-            exclude_external_images=exclude_external_images,
-        )
+        # Build config dict, only including excluded_tags if user explicitly provided them
+        config_kwargs = {
+            "url": url,
+            "max_depth": max_depth,
+            "output_format": output_format,
+            "output_file": output_file,
+            "concurrency": concurrency,
+            "request_delay": request_delay,
+            "max_retries": max_retries,
+            "retry_backoff_factor": retry_backoff,
+            "content_filter_enabled": not no_content_filter,
+            "pruning_threshold": pruning_threshold,
+            "exclude_external_links": exclude_external_links,
+            "exclude_external_images": exclude_external_images,
+        }
+        
+        # Only override excluded_tags if user explicitly provided them
+        if excluded_tags_list:
+            config_kwargs["excluded_tags"] = excluded_tags_list
+        # Otherwise, let the model use its default
+        
+        crawl_config = CrawlConfig(**config_kwargs)  # type: ignore
         
         # Print configuration summary
-        print(f"Crawling {url} with:")
-        print(f"  - Depth: {max_depth}")
-        print(f"  - Concurrency: {concurrency}")
-        print(f"  - Max retries: {max_retries}")
+        typer.echo(f"Crawling {url} with:")
+        typer.echo(f"  - Depth: {max_depth}")
+        typer.echo(f"  - Concurrency: {concurrency}")
+        typer.echo(f"  - Max retries: {max_retries}")
         if max_retries > 0:
-            print(f"  - Retry backoff factor: {retry_backoff}")
-        print(f"  - Content filtering: {'Enabled' if not no_content_filter else 'Disabled'}")
+            typer.echo(f"  - Retry backoff factor: {retry_backoff}")
+        typer.echo(f"  - Content filtering: {'Enabled' if not no_content_filter else 'Disabled'}")
         if not no_content_filter:
-            print(f"  - Pruning threshold: {pruning_threshold}")
-        print(f"  - Exclude external links: {exclude_external_links}")
-        if excluded_tags_list:
-            print(f"  - Excluded tags: {', '.join(excluded_tags_list)}")
+            typer.echo(f"  - Pruning threshold: {pruning_threshold}")
+        typer.echo(f"  - Exclude external links: {exclude_external_links}")
+        # Show actual excluded tags (either user-provided or model defaults)
+        actual_tags = crawl_config.excluded_tags
+        if actual_tags:
+            typer.echo(f"  - Excluded tags: {', '.join(actual_tags)}")
     except pydantic.ValidationError as e:
-        print(f"Configuration error: {e}")
+        typer.echo(f"Configuration error: {e}")
         raise typer.Exit(code=1)
     
     try:
@@ -98,33 +113,35 @@ def proc_input(
         results = asyncio.run(crawl_url(crawl_config))
         
         if not results:
-            print("No content was extracted from the website.")
+            typer.echo("No content was extracted from the website.")
             raise typer.Exit(code=1)
+
+        typer.echo(f"Successfully crawled {len(results)} pages")
         
-        print(f"Successfully crawled {len(results)} pages")
-        
-        # Save results
+        # Determine output path - default to consolidated file
         if output_file:
-            # If output_file is a simple filename (no directory), prepend "output/"
             output_path = Path(output_file)
-            if len(output_path.parents) == 1 and output_path.parent == Path("."):
-                # Simple filename, prepend output directory
-                output_path = Path("output") / output_path
-                # Ensure output directory exists
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Save all pages to a single consolidated file
-            print(f"Saving consolidated output to {output_path}")
-            save_consolidated(results, output_path, format=output_format)
-            print(f"Consolidated file saved: {output_path}")
         else:
-            # Save each page as individual file in output/ directory
-            print(f"Saving {len(results)} pages to output/ directory")
-            saved_paths = save_all_pages(results, format=output_format)
-            print(f"Saved {len(saved_paths)} files")
+            # Generate default filename from domain
+            from urllib.parse import urlparse
+            domain = urlparse(url).netloc.replace(":", "_").replace(".", "_")
+            default_filename = f"{domain}.{output_format}"
+            output_path = Path("output") / default_filename
+        
+        # If output_path is a simple filename (no directory), prepend "output/"
+        if len(output_path.parents) == 1 and output_path.parent == Path("."):
+            output_path = Path("output") / output_path
+        
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Save all pages to a single consolidated file (default behavior)
+        typer.echo(f"Saving consolidated output to {output_path}")
+        save_consolidated(results, output_path, format=output_format)
+        typer.echo(f"Consolidated file saved: {output_path}")
             
     except Exception as e:
-        print(f"Error during crawling: {e}")
+        typer.echo(f"Error during crawling: {e}")
         raise typer.Exit(code=1)
     
     

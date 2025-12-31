@@ -154,7 +154,7 @@ class TestLinkExtraction:
         assert len(links) == 2
     
     def test_extract_links_multiple_tag_types(self):
-        """Test extraction from different tag types (a, link, area)."""
+        """Test that link extraction only includes anchor tags, not assets."""
         engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
         
         html = """
@@ -176,14 +176,17 @@ class TestLinkExtraction:
         
         links = engine._extract_links(html, "https://example.com")
         
-        # Should find links from all tag types
+        # Should only find anchor links, not <link> tags (which are for stylesheets)
+        # and not <area> tags (which are typically for image maps, not navigation)
         assert "/page1" in links
         assert "/page2" in links
-        assert "/style.css" in links
-        assert "https://cdn.example.com/lib.css" in links
-        assert "/area1" in links
-        assert "/area2" in links
-        assert len(links) == 6
+        # CSS links should be filtered out (they're assets)
+        assert "/style.css" not in links
+        assert "https://cdn.example.com/lib.css" not in links
+        # Note: <area> tags are NOT extracted per the implementation comment
+        # "We're NOT including <link> or <area> tags anymore since they're
+        # typically for assets (CSS, favicons, image maps) not HTML pages"
+        assert len(links) == 2
     
     def test_extract_links_fallback_to_regex(self):
         """Test that fallback to regex works if BeautifulSoup fails."""
@@ -236,6 +239,82 @@ class TestLinkExtraction:
         assert "subdir/page4.html" in links
         assert "//example.com/protocol-relative" in links
         assert len(links) == 5
+
+
+class TestURLNormalization:
+    """Test URL normalization to prevent duplicate crawls."""
+    
+    def test_normalize_url_removes_fragment(self):
+        """Test that URL fragments (#section) are removed."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        assert engine._normalize_url("https://example.com/page#section") == "https://example.com/page"
+        assert engine._normalize_url("https://example.com/page#") == "https://example.com/page"
+        assert engine._normalize_url("https://example.com/#top") == "https://example.com/"
+    
+    def test_normalize_url_trailing_slash(self):
+        """Test that trailing slashes are normalized consistently."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        # Non-root paths should NOT have trailing slash
+        assert engine._normalize_url("https://example.com/page/") == "https://example.com/page"
+        assert engine._normalize_url("https://example.com/page") == "https://example.com/page"
+        
+        # Root path SHOULD keep trailing slash
+        assert engine._normalize_url("https://example.com/") == "https://example.com/"
+        assert engine._normalize_url("https://example.com") == "https://example.com/"
+    
+    def test_normalize_url_case_insensitive_domain(self):
+        """Test that domain is normalized to lowercase."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        assert engine._normalize_url("https://EXAMPLE.COM/page") == "https://example.com/page"
+        assert engine._normalize_url("https://Example.Com/Page") == "https://example.com/Page"  # Path case preserved
+    
+    def test_normalize_url_removes_default_ports(self):
+        """Test that default ports are removed."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        assert engine._normalize_url("http://example.com:80/page") == "http://example.com/page"
+        assert engine._normalize_url("https://example.com:443/page") == "https://example.com/page"
+        # Non-default ports should be kept
+        assert engine._normalize_url("https://example.com:8080/page") == "https://example.com:8080/page"
+    
+    def test_normalize_url_sorts_query_params(self):
+        """Test that query parameters are sorted for consistency."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        # Same params in different order should normalize to same URL
+        url1 = engine._normalize_url("https://example.com/page?b=2&a=1")
+        url2 = engine._normalize_url("https://example.com/page?a=1&b=2")
+        assert url1 == url2
+        assert url1 == "https://example.com/page?a=1&b=2"
+    
+    def test_normalize_url_preserves_query_values(self):
+        """Test that query parameter values are preserved."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        normalized = engine._normalize_url("https://example.com/search?q=hello+world&page=1")
+        assert "q=hello+world" in normalized or "q=hello%20world" in normalized
+        assert "page=1" in normalized
+    
+    def test_duplicate_urls_normalized_to_same(self):
+        """Test that various duplicate URL forms normalize to same value."""
+        engine = CrawlerEngine(CrawlConfig(url="https://example.com"))
+        
+        urls = [
+            "https://example.com/page",
+            "https://example.com/page/",
+            "https://example.com/page#section",
+            "https://example.com/page/#section",
+            "https://EXAMPLE.COM/page",
+            "https://example.com:443/page",
+        ]
+        
+        normalized = [engine._normalize_url(url) for url in urls]
+        # All should normalize to the same URL
+        assert len(set(normalized)) == 1
+        assert normalized[0] == "https://example.com/page"
 
 
 if __name__ == "__main__":
