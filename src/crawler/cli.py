@@ -51,6 +51,9 @@ def proc_input(
     exclude_external_images: Annotated[bool, typer.Option(
         help="Exclude external images from extracted content"
     )] = False,
+    target_element: Annotated[Optional[str], typer.Option(
+        help="CSS selector for main content area (e.g., 'article', '.md-content', 'main')"
+    )] = None,
 ):
     """
     Crawl a website and save the extracted content.
@@ -85,6 +88,10 @@ def proc_input(
         # Only override excluded_tags if user explicitly provided them
         if excluded_tags_list:
             config_kwargs["excluded_tags"] = excluded_tags_list
+        
+        # Add target_element if provided
+        if target_element:
+            config_kwargs["target_element"] = target_element
         # Otherwise, let the model use its default
         
         crawl_config = CrawlConfig(**config_kwargs)  # type: ignore
@@ -136,9 +143,11 @@ def proc_input(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Save all pages to a single consolidated file (default behavior)
-        typer.echo(f"Saving consolidated output to {output_path}")
         save_consolidated(results, output_path, format=output_format)
-        typer.echo(f"Consolidated file saved: {output_path}")
+        
+        # Log where file was saved with absolute path
+        absolute_path = output_path.resolve()
+        typer.echo(f"Saved to: {absolute_path}")
             
     except Exception as e:
         typer.echo(f"Error during crawling: {e}")

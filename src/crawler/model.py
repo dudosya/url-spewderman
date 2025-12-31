@@ -19,8 +19,12 @@ class CrawlConfig(pydantic.BaseModel):
     pruning_threshold: float = pydantic.Field(default=0.5, ge=0.0, le=1.0)
     excluded_tags: Optional[List[str]] = pydantic.Field(
         default_factory=lambda: [
-            "nav", "footer", "header", "aside", "form", "script", "style",
+            "nav", "footer", "header", "script", "style",
+            # "nav", "footer", "header", "aside", "form", "script", "style",
         ]
     )
     exclude_external_links: bool = True
     exclude_external_images: bool = False
+    # CSS selector to target specific content area (e.g., 'article', '.md-content', '#content')
+    # Unlike css_selector, this still extracts links from the full page
+    target_element: Optional[str] = None

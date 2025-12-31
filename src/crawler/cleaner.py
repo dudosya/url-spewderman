@@ -36,12 +36,15 @@ class ContentCleaner:
         
         if not self.config.content_filter_enabled:
             # Return basic config without content filtering
+            # Use target_elements (not css_selector) to preserve link extraction
+            target_elements = [self.config.target_element] if self.config.target_element else None
             return CrawlerRunConfig(
                 cache_mode=CacheMode.BYPASS,
                 excluded_tags=excluded_tags,
                 exclude_external_links=self.config.exclude_external_links,
                 exclude_external_images=self.config.exclude_external_images,
                 word_count_threshold=10,
+                target_elements=target_elements,
             )
 
         # Create PruningContentFilter with configured threshold
@@ -60,6 +63,9 @@ class ContentCleaner:
             }
         )
 
+        # Use target_elements (not css_selector) to preserve link extraction
+        target_elements = [self.config.target_element] if self.config.target_element else None
+        
         # Return comprehensive crawler config
         return CrawlerRunConfig(
             cache_mode=CacheMode.BYPASS,
@@ -69,7 +75,8 @@ class ContentCleaner:
             exclude_external_images=self.config.exclude_external_images,
             word_count_threshold=10,
             remove_overlay_elements=True,
-            process_iframes=False,  # Keep iframes for now, can be configurable
+            process_iframes=False,
+            target_elements=target_elements,
         )
 
     @staticmethod
