@@ -54,6 +54,21 @@ def proc_input(
     target_element: Annotated[Optional[str], typer.Option(
         help="CSS selector for main content area (e.g., 'article', '.md-content', 'main')"
     )] = None,
+    scan_full_page: Annotated[bool, typer.Option(
+        help="Scan full page by scrolling to load dynamic content"
+    )] = True,
+    scroll_delay: Annotated[float, typer.Option(
+        help="Delay between scrolls when scanning full page (0.0-10.0 seconds)"
+    )] = 0.5,
+    auto_expand: Annotated[bool, typer.Option(
+        help="Automatically expand accordions/collapsibles before extraction"
+    )] = True,
+    expand_selectors: Annotated[Optional[str], typer.Option(
+        help="Custom selectors (comma-separated) to click/open for expansion"
+    )] = None,
+    js_actions: Annotated[Optional[str], typer.Option(
+        help="JavaScript actions to execute (comma-separated strings)"
+    )] = None,
 ):
     """
     Crawl a website and save the extracted content.
@@ -94,6 +109,15 @@ def proc_input(
             config_kwargs["target_element"] = target_element
         # Otherwise, let the model use its default
         
+        # Add dynamic content options
+        config_kwargs["scan_full_page"] = scan_full_page
+        config_kwargs["scroll_delay"] = scroll_delay
+        config_kwargs["auto_expand"] = auto_expand
+        if expand_selectors:
+            config_kwargs["expand_selectors"] = [sel.strip() for sel in expand_selectors.split(",") if sel.strip()]
+        if js_actions:
+            config_kwargs["js_actions"] = [action.strip() for action in js_actions.split(",")]
+        
         crawl_config = CrawlConfig(**config_kwargs)  # type: ignore
         
         # Print configuration summary
@@ -111,6 +135,14 @@ def proc_input(
         actual_tags = crawl_config.excluded_tags
         if actual_tags:
             typer.echo(f"  - Excluded tags: {', '.join(actual_tags)}")
+        typer.echo(f"  - Scan full page: {scan_full_page}")
+        typer.echo(f"  - Auto-expand accordions: {auto_expand}")
+        if expand_selectors:
+            typer.echo(f"  - Expand selectors: {expand_selectors}")
+        if scan_full_page:
+            typer.echo(f"  - Scroll delay: {scroll_delay}s")
+        if js_actions:
+            typer.echo(f"  - JS actions: {js_actions}")
     except pydantic.ValidationError as e:
         typer.echo(f"Configuration error: {e}")
         raise typer.Exit(code=1)

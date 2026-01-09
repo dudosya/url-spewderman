@@ -5,7 +5,7 @@ import pydantic
 
 class CrawlConfig(pydantic.BaseModel):
     url: pydantic.HttpUrl
-    max_depth: int = pydantic.Field(default=3, ge=1, le=15)
+    max_depth: int = pydantic.Field(default=5, ge=1, le=15)
     output_format: Literal["txt", "md", "json"] = "txt"
     output_file: Optional[Path] = None
     concurrency: int = pydantic.Field(default=5, ge=1, le=20)
@@ -28,3 +28,10 @@ class CrawlConfig(pydantic.BaseModel):
     # CSS selector to target specific content area (e.g., 'article', '.md-content', '#content')
     # Unlike css_selector, this still extracts links from the full page
     target_element: Optional[str] = None
+    # Dynamic content loading configuration
+    scan_full_page: bool = True
+    scroll_delay: float = pydantic.Field(default=0.5, ge=0.0, le=10.0)
+    auto_expand: bool = True
+    expand_selectors: Optional[List[str]] = None
+    # JavaScript actions for user interactions
+    js_actions: Optional[List[str]] = None
