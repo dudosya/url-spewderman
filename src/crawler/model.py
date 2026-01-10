@@ -5,6 +5,7 @@ import pydantic
 
 class CrawlConfig(pydantic.BaseModel):
     url: pydantic.HttpUrl
+    internal_domain_policy: Literal["registrable", "host"] = "registrable"
     max_depth: int = pydantic.Field(default=5, ge=1, le=15)
     output_format: Literal["txt", "md", "json"] = "txt"
     output_file: Optional[Path] = None
@@ -19,8 +20,13 @@ class CrawlConfig(pydantic.BaseModel):
     pruning_threshold: float = pydantic.Field(default=0.5, ge=0.0, le=1.0)
     excluded_tags: Optional[List[str]] = pydantic.Field(
         default_factory=lambda: [
-            "nav", "footer", "header", "script", "style",
-            # "nav", "footer", "header", "aside", "form", "script", "style",
+            "nav",
+            "footer",
+            "header",
+            "aside",
+            "form",
+            "script",
+            "style",
         ]
     )
     exclude_external_links: bool = True
@@ -31,7 +37,7 @@ class CrawlConfig(pydantic.BaseModel):
     # Dynamic content loading configuration
     scan_full_page: bool = True
     scroll_delay: float = pydantic.Field(default=0.5, ge=0.0, le=10.0)
-    auto_expand: bool = True
+    auto_expand: bool = False
     expand_selectors: Optional[List[str]] = None
     # JavaScript actions for user interactions
     js_actions: Optional[List[str]] = None

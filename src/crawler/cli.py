@@ -21,6 +21,10 @@ app = typer.Typer()
 def proc_input(
     url: Annotated[str, typer.Argument(help="URL to crawl")],
     max_depth: Annotated[int, typer.Option(help="Maximum crawl depth (1-15)")] = 3,
+    internal_domain_policy: Annotated[str, typer.Option(
+        help="Internal domain policy for crawl scope: 'registrable' (default, allows subdomains) or 'host' (exact host only)",
+        case_sensitive=False,
+    )] = "registrable",
     output_format: Annotated[str, typer.Option(
         help="Output format: txt, md, or json",
         case_sensitive=False
@@ -77,6 +81,13 @@ def proc_input(
     if output_format not in ["txt", "md", "json"]:
         typer.echo(f"Error: output_format must be 'txt', 'md', or 'json', got '{output_format}'")
         raise typer.Exit(code=1)
+
+    internal_domain_policy = internal_domain_policy.lower().strip()
+    if internal_domain_policy not in {"registrable", "host"}:
+        typer.echo(
+            "Error: internal_domain_policy must be 'registrable' (subdomains allowed) or 'host' (exact host only)"
+        )
+        raise typer.Exit(code=1)
     
     # Parse excluded tags if provided
     excluded_tags_list = None
@@ -88,6 +99,7 @@ def proc_input(
         config_kwargs = {
             "url": url,
             "max_depth": max_depth,
+            "internal_domain_policy": internal_domain_policy,
             "output_format": output_format,
             "output_file": output_file,
             "concurrency": concurrency,
@@ -123,6 +135,7 @@ def proc_input(
         # Print configuration summary
         typer.echo(f"Crawling {url} with:")
         typer.echo(f"  - Depth: {max_depth}")
+        typer.echo(f"  - Internal domain policy: {internal_domain_policy}")
         typer.echo(f"  - Concurrency: {concurrency}")
         typer.echo(f"  - Max retries: {max_retries}")
         if max_retries > 0:

@@ -51,6 +51,9 @@ uv run input https://example.com --max-depth 1
 # Deep crawl with more filtering
 uv run input https://example.com --max-depth 5 --pruning-threshold 0.7
 
+# Restrict crawling to the exact host only (no subdomains)
+uv run input https://example.com --internal-domain-policy host
+
 # Faster crawling
 uv run input https://example.com --concurrency 10 --request-delay 0.5
 
@@ -60,21 +63,22 @@ uv run input https://example.com --no-content-filter
 
 ## Parameters
 
-| Parameter                   | Default  | Description                       |
-| --------------------------- | -------- | --------------------------------- |
-| `URL`                       | required | Website URL to crawl              |
-| `--max-depth`               | `3`      | Link depth to crawl (1-15)        |
-| `--output-format`           | `txt`    | Format: `txt`, `md`, `json`       |
-| `--output-file`             | auto     | Output filename                   |
-| `--concurrency`             | `5`      | Parallel requests (1-20)          |
-| `--request-delay`           | `1.0`    | Delay between requests in seconds |
-| `--max-retries`             | `3`      | Retry attempts for failures       |
-| `--retry-backoff`           | `1.5`    | Backoff multiplier                |
-| `--no-content-filter`       | `false`  | Disable content filtering         |
-| `--pruning-threshold`       | `0.3`    | Filter aggressiveness (0.0-1.0)   |
-| `--exclude-tags`            | defaults | HTML tags to remove               |
-| `--exclude-external-links`  | `true`   | Remove external links             |
-| `--exclude-external-images` | `false`  | Remove external images            |
+| Parameter                   | Default       | Description                                               |
+| --------------------------- | ------------- | --------------------------------------------------------- |
+| `URL`                       | required      | Website URL to crawl                                      |
+| `--max-depth`               | `3`           | Link depth to crawl (1-15)                                |
+| `--output-format`           | `txt`         | Format: `txt`, `md`, `json`                               |
+| `--output-file`             | auto          | Output filename                                           |
+| `--concurrency`             | `5`           | Parallel requests (1-20)                                  |
+| `--request-delay`           | `1.0`         | Delay between requests in seconds                         |
+| `--max-retries`             | `3`           | Retry attempts for failures                               |
+| `--retry-backoff`           | `1.5`         | Backoff multiplier                                        |
+| `--no-content-filter`       | `false`       | Disable content filtering                                 |
+| `--pruning-threshold`       | `0.3`         | Filter aggressiveness (0.0-1.0)                           |
+| `--exclude-tags`            | defaults      | HTML tags to remove                                       |
+| `--exclude-external-links`  | `true`        | Remove external links                                     |
+| `--exclude-external-images` | `false`       | Remove external images                                    |
+| `--internal-domain-policy`  | `registrable` | Crawl scope: `registrable` (subdomains allowed) or `host` |
 
 ### Key Parameters
 

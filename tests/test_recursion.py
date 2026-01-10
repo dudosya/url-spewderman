@@ -182,6 +182,67 @@ async def test_domain_restriction(mock_crawler):
 
 
 @pytest.mark.asyncio
+async def test_subdomains_allowed_by_default(mock_crawler):
+    """Default policy should treat same registrable domain as internal (subdomains allowed)."""
+    website_structure = {
+        'https://docs.example.com/a': ['https://www.example.com/b'],
+        'https://www.example.com/b': [],
+    }
+
+    def arun_side_effect(url, **kwargs):
+        if url in website_structure:
+            return create_mock_page(url, website_structure[url])
+        return MockCrawlResult(html=f"<html><body>Page {url}</body></html>")
+
+    mock_crawler.arun.side_effect = arun_side_effect
+
+    config = CrawlConfig(
+        url='https://docs.example.com/a',
+        max_depth=2,
+        concurrency=1,
+        request_delay=0.1,
+    )
+
+    engine = CrawlerEngine(config)
+    results = await engine.run()
+
+    assert len(results) == 2
+    assert 'https://docs.example.com/a' in results
+    assert 'https://www.example.com/b' in results
+
+
+@pytest.mark.asyncio
+async def test_host_policy_blocks_subdomains(mock_crawler):
+    """Host policy should only allow exact host, blocking different subdomains."""
+    website_structure = {
+        'https://docs.example.com/a': ['https://www.example.com/b'],
+        'https://www.example.com/b': [],
+    }
+
+    def arun_side_effect(url, **kwargs):
+        if url in website_structure:
+            return create_mock_page(url, website_structure[url])
+        return MockCrawlResult(html=f"<html><body>Page {url}</body></html>")
+
+    mock_crawler.arun.side_effect = arun_side_effect
+
+    config = CrawlConfig(
+        url='https://docs.example.com/a',
+        internal_domain_policy='host',
+        max_depth=2,
+        concurrency=1,
+        request_delay=0.1,
+    )
+
+    engine = CrawlerEngine(config)
+    results = await engine.run()
+
+    assert len(results) == 1
+    assert 'https://docs.example.com/a' in results
+    assert 'https://www.example.com/b' not in results
+
+
+@pytest.mark.asyncio
 async def test_visited_tracking(mock_crawler):
     """Test that crawler doesn't revisit pages."""
     # Create a circular structure: A -> B -> A

@@ -228,9 +228,9 @@ class TestErrorRecovery:
         sleep_calls = []
         original_sleep = asyncio.sleep
         
-        def mock_sleep(delay):
+        async def mock_sleep(delay):
             sleep_calls.append(delay)
-            return original_sleep(0)  # Don't actually sleep in tests
+            return await original_sleep(0)  # Don't actually sleep in tests
         
         # Mock _crawl_page_single to fail twice then succeed
         mock_content = "Mock content"
@@ -270,9 +270,9 @@ class TestErrorRecovery:
         sleep_calls = []
         original_sleep = asyncio.sleep
         
-        def mock_sleep(delay):
+        async def mock_sleep(delay):
             sleep_calls.append(delay)
-            return original_sleep(0)
+            return await original_sleep(0)
         
         engine._crawl_page_single = AsyncMock(
             side_effect=[

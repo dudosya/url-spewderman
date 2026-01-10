@@ -1,5 +1,6 @@
 from typing import Set, List, Dict, Optional, Tuple, Any
 from urllib.parse import urlparse, urljoin, urlunparse, parse_qsl, urlencode
+from ipaddress import ip_address
 import asyncio
 import logging
 import sys
@@ -7,6 +8,11 @@ import sys
 from crawler.model import CrawlConfig
 from crawler.cleaner import ContentCleaner
 from crawl4ai import AsyncWebCrawler
+
+try:
+    from publicsuffix2 import get_sld  # type: ignore
+except Exception:  # pragma: no cover
+    get_sld = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +26,56 @@ class CrawlerEngine:
         self.queued: Set[str] = set()  # Track URLs already added to queue to prevent duplicates
         self.queue: asyncio.Queue = asyncio.Queue()
         self.results: Dict[str, str] = {}
-        self.base_domain = self._extract_domain(str(config.url))
         self.cleaner = ContentCleaner(config)
         self._visited_lock = asyncio.Lock()  # Protect visited/queued sets from race conditions
         
         # Normalize and initialize queue with starting URL at depth 0
         start_url = self._normalize_url(str(config.url))
+        self.base_scope = self._scope_key(start_url)
+        self.base_domain = self.base_scope
         self.queue.put_nowait((start_url, 0))
         self.queued.add(start_url)
         
     def _extract_domain(self, url: str) -> str:
-        """Extract domain from URL for domain restriction."""
+        """Extract hostname from URL for domain restriction (ignores ports)."""
         parsed = urlparse(url)
-        return parsed.netloc.lower()  # Normalize domain to lowercase
+        if parsed.hostname:
+            return parsed.hostname.lower()
+        # Fallback to netloc if hostname isn't available
+        return parsed.netloc.lower().split(":", 1)[0]
+
+    def _registrable_domain(self, host: str) -> str:
+        """Compute registrable domain (eTLD+1) for a host; fallback safely for IP/localhost."""
+        host = host.strip(".").lower()
+        if not host:
+            return host
+
+        if host == "localhost":
+            return host
+
+        try:
+            ip_address(host)
+            return host
+        except ValueError:
+            pass
+
+        if get_sld is None:
+            # Dependency not available; fallback to host-only scoping.
+            return host
+
+        try:
+            sld = get_sld(host)
+            return sld or host
+        except Exception:
+            return host
+
+    def _scope_key(self, url: str) -> str:
+        """Return the key used for internal/external scoping based on config policy."""
+        host = self._extract_domain(url)
+        policy = getattr(self.config, "internal_domain_policy", "registrable")
+        if policy == "host":
+            return host
+        return self._registrable_domain(host)
     
     def _normalize_url(self, url: str) -> str:
         """
@@ -81,7 +124,7 @@ class CrawlerEngine:
         
     def _is_same_domain(self, url: str) -> bool:
         """Check if URL belongs to the same domain as the base URL."""
-        return self._extract_domain(url) == self.base_domain
+        return self._scope_key(url) == self.base_scope
     
     def _should_crawl_url(self, url: str) -> bool:
         """
